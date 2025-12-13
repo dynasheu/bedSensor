@@ -9,6 +9,7 @@
 
 #define FORMAT_SPIFFS_IF_FAILED true
 #define FILTER_LENGTH 50
+#define LOOP_DELAY 10
 
 //define your default values here, if there are different values in config.json, they are overwritten.
 char mqtt_server[40];
@@ -188,7 +189,19 @@ void loop() {
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
     Sensor_Update(&SensorData[i], pirState);
+
+      // serial plotter output
+      if ( i == 0 ) {
+        Serial.print(pirState);
+        Serial.print(",");
+        Serial.print(SensorData[i].percentage);
+        Serial.print(",");
+        Serial.println(SensorData[i].output);
+      }
+
   }
+
+  delay(LOOP_DELAY);
 }
 
 void Sensor_Init(SensorObj *sensor) {

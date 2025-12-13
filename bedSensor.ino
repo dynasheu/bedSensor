@@ -1,11 +1,11 @@
 #include <FS.h> // needs to be first
-#include <WiFiManager.h>
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
 #ifdef ESP32
   #include <SPIFFS.h>
 #endif
 
-#include <ArduinoJson.h>
+#include <ArduinoJson.h> // v6+
 
 #define FORMAT_SPIFFS_IF_FAILED true
 
@@ -26,12 +26,22 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
+const int noSensors = 2;
+int pirPins[noSensors] = {5, 6}; // pin numbers
+int sensorOutput[noSensors] = {0, 0}; // default to no output
+
 void setup() {
   // serial
   Serial.begin(115200);
   while (!Serial)
     delay(10);
   Serial.println("Serial online");
+
+  // initialize sonsor pins
+  for (int i  = 0, i < noSensors; i++) {
+    pinMode(pirPins[i], INPUT);
+  }
+
 
   //clean FS, for testing
   //SPIFFS.format();
@@ -81,12 +91,11 @@ void setup() {
   WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
   WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
   WiFiManagerParameter custom_mqtt_username("username", "mqtt username", mqtt_username, 15);
-  WiFiManagerParameter custom_mqtt_password("password", "mqtt password", mqtt_password, 15);
+  WiFiManagerParameter custom_mqtt_password("password", "mqtt password", mqtt_password, 15,"type='password'");
   WiFiManagerParameter custom_mqtt_topic("topic", "mqtt topic", mqtt_topic, 30);
   WiFiManagerParameter custom_sensor_delay("sensor_delay", "PIR sensor delay", sensor_delay, 8);
 
   //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wifiManager;
 
   //set config save notify callback
@@ -100,17 +109,12 @@ void setup() {
   wifiManager.addParameter(&custom_mqtt_topic);
   wifiManager.addParameter(&custom_sensor_delay);
 
+  //set dark mode
+  wifiManager.setDarkMode(true);
+
   //reset settings - for testing
   wifiManager.resetSettings();
 
-  //sets timeout until configuration portal gets turned off
-  //useful to make it all retry or go to sleep
-  //in seconds
-  //wifiManager.setTimeout(120);
-
-  //fetches ssid and pass and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect("AutoConnectAP", "password")) {
     Serial.println("failed to connect and hit timeout");
@@ -121,7 +125,7 @@ void setup() {
   }
 
   //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
+  Serial.println("connected to WiFi :)");
 
   //read updated parameters
   strcpy(mqtt_server, custom_mqtt_server.getValue());
@@ -154,7 +158,7 @@ void setup() {
       Serial.println("failed to open config file for writing");
     }
 
-    serializeJson(json, Serial);
+    // serializeJson(json, Serial);
     serializeJson(json, configFile);
     configFile.close();
     //end save
@@ -167,4 +171,8 @@ void setup() {
 
 void loop() {
 
+  for (int i = 0, i < noSensors) {
+    int pirState = digitalRead(pirPin[i]);
+
+  }
 }

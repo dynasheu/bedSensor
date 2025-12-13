@@ -7,7 +7,6 @@
 
 #include <ArduinoJson.h>
 
-// set this only once to correclty format SPIFFS
 #define FORMAT_SPIFFS_IF_FAILED true
 
 //define your default values here, if there are different values in config.json, they are overwritten.
@@ -26,9 +25,6 @@ void saveConfigCallback () {
   Serial.println("Should save config");
   shouldSaveConfig = true;
 }
-
-// wifimanager
-WiFiManager wifiManager;
 
 void setup() {
   // serial
@@ -91,7 +87,7 @@ void setup() {
 
   //WiFiManager
   //Local intialization. Once its business is done, there is no need to keep it around
-  // WiFiManager wifiManager;
+  WiFiManager wifiManager;
 
   //set config save notify callback
   wifiManager.setSaveConfigCallback(saveConfigCallback);
@@ -170,6 +166,5 @@ void setup() {
 }
 
 void loop() {
-  wifiManager.process();
 
 }

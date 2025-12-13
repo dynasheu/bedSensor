@@ -33,22 +33,14 @@ int sensorOutput[noSensors] = {0, 0}; // default to no output
 
 // struc to hold sensor data
 typedef struct {
-  int buf[FILTER_LENGTH]; // alst x amount of sensor readings
+  int buf[FILTER_LENGTH];
   float percentage;
   int bufIndex;
+  unsigned long output_timer;
   int output;
-} Sensor;
+} SensorObj;
 
-Sensor SensorData[noSensors];
-
-void sensor_init(Sensor *sen) {
-  for (int n = 0; n < FILTER_LENGTH; n++) {
-    sen->buf[n] = 0;
-  }
-  sen->percentage = 0.0;
-  sen->bufIndex = 0;
-  sen->output = 0;
-}
+SensorObj SensorData;
 
 void setup() {
   // serial
@@ -60,8 +52,11 @@ void setup() {
   // initialize sonsor pins
   for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
-    sensor_init(&SensorData[i]);
+    // Sensor_init(&SensorData[i]);
   }
+  
+  Sensor_Init(&SensorData);
+
 
 
   //clean FS, for testing
@@ -192,8 +187,50 @@ void setup() {
 
 void loop() {
 
-  for (int i = 0, i < noSensors) {
-    int pirState = digitalRead(pirPin[i]);
-
+  for (int i = 0; i < noSensors; i++) {
+    int pirState = digitalRead(pirPins[i]);
+    Sensor_Update(&SensorData, pirState[i]);
   }
+}
+
+void Sensor_Init(SensorObj *sensor) {
+  for (int n = 0; n < FILTER_LENGTH; n++) {
+    sensor->buf[n] = 0;
+  }
+  sensor->percentage = 0.0;
+  sensor->bufIndex = 0;
+  sensor->output = 0;
+}
+
+int Sensor_Update(SensorObj *sensor, int input) {
+  int old_output = sensor->output;
+  sensor->buf[sensor->bufIndex] = input;
+
+  sensor->bufIndex++;
+
+  if (sensor->bufIndex == FILTER_LENGTH) {
+    sensor->bufIndex = 0;
+  }
+
+  sensor->output = 0;
+
+  int trig_count = 0;
+  for (int n = 0; n < FILTER_LENGTH; n++) {
+    trig_count += sensor->buf[n];
+  }
+
+  sensor->percentage = (float)trig_count/FILTER_LENGTH * 100;
+
+  if (sensor->percentage > 75.0) {
+    sensor->output_timer = millis();
+    sensor->output = 1;
+  }
+
+  int outputDelay = atoi(sensor_delay);
+  if ((millis() - sensor->output_timer) > outputDelay) {
+    sensor->output = 0;
+  }
+
+  return sensor->output;
+
 }

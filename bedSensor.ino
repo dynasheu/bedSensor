@@ -12,6 +12,7 @@ char mqtt_server[40];
 char mqtt_port[6] = "1883";
 char mqtt_username[15];
 char mqtt_password[15];
+char mqtt_topic[30] = "bedroom/bed_sensor";
 char sensor_delay[8] = "60000";
 
 //flag for saving data
@@ -24,10 +25,7 @@ void saveConfigCallback () {
 }
 
 // wifimanager
-bool wm_nonblocking = false;
-
-WiFiManager wm;
-WiFiManagerParameter custom_field;
+WiFiManager wifiManager;
 
 void setup() {
   // serial
@@ -75,6 +73,7 @@ void setup() {
           strcpy(mqtt_port, json["mqtt_port"]);
           strcpy(mqtt_username, json["mqtt_username"]);
           strcpy(mqtt_password, json["mqtt_password"]);
+          strcpy(mqtt_topic, json["mqtt_topic"]);
           strcpy(sensor_delay, json["sensor_delay"]);
         } else {
           Serial.println("failed to load json config");
@@ -94,11 +93,12 @@ void setup() {
   WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
   WiFiManagerParameter custom_mqtt_username("username", "mqtt username", mqtt_username, 15);
   WiFiManagerParameter custom_mqtt_password("password", "mqtt password", mqtt_password, 15);
+  WiFiManagerParameter custom_mqtt_topic("topic", "mqtt topic", mqtt_topic, 30);
   WiFiManagerParameter custom_sensor_delay("sensor_delay", "PIR sensor delay", sensor_delay, 8);
 
   //WiFiManager
   //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
+  // WiFiManager wifiManager;
 
   //set config save notify callback
   wifiManager.setSaveConfigCallback(saveConfigCallback);
@@ -108,6 +108,7 @@ void setup() {
   wifiManager.addParameter(&custom_mqtt_port);
   wifiManager.addParameter(&custom_mqtt_username);
   wifiManager.addParameter(&custom_mqtt_password);
+  wifiManager.addParameter(&custom_mqtt_topic);
   wifiManager.addParameter(&custom_sensor_delay);
 
   //reset settings - for testing
@@ -138,12 +139,14 @@ void setup() {
   strcpy(mqtt_port, custom_mqtt_port.getValue());
   strcpy(mqtt_username, custom_mqtt_username.getValue());
   strcpy(mqtt_password, custom_mqtt_password.getValue());
+  strcpy(mqtt_topic, custom_mqtt_topic.getValue());
   strcpy(sensor_delay, custom_sensor_delay.getValue());
   Serial.println("The values in the file are: ");
   Serial.println("\tmqtt_server : " + String(mqtt_server));
   Serial.println("\tmqtt_port : " + String(mqtt_port));
   Serial.println("\tmqtt_username : " + String(mqtt_username));
   Serial.println("\tmqtt_password : " + String(mqtt_password));
+  Serial.println("\tmqtt_topic : " + String(mqtt_topic));
   Serial.println("\tsensor_delay : " + String(sensor_delay));
 
   //save the custom parameters to FS
@@ -159,6 +162,7 @@ void setup() {
     json["mqtt_port"] = mqtt_port;
     json["mqtt_username"] = mqtt_username;
     json["mqtt_password"] = mqtt_password;
+    json["mqtt_topic"] = mqtt_topic;
     json["sensor_delay"] = sensor_delay;
 
     File configFile = SPIFFS.open("/config.json", "w");
@@ -183,5 +187,6 @@ void setup() {
 }
 
 void loop() {
+  wifiManager.process();
 
 }

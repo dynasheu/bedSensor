@@ -8,6 +8,7 @@
 #include <ArduinoJson.h> // v6+
 
 #define FORMAT_SPIFFS_IF_FAILED true
+#define FILTER_LENGTH 50
 
 //define your default values here, if there are different values in config.json, they are overwritten.
 char mqtt_server[40];
@@ -30,6 +31,25 @@ const int noSensors = 2;
 int pirPins[noSensors] = {5, 6}; // pin numbers
 int sensorOutput[noSensors] = {0, 0}; // default to no output
 
+// struc to hold sensor data
+typedef struct {
+  int buf[FILTER_LENGTH]; // alst x amount of sensor readings
+  float percentage;
+  int bufIndex;
+  int output;
+} Sensor;
+
+Sensor SensorData[noSensors];
+
+void sensor_init(Sensor *sen) {
+  for (int n = 0; n < FILTER_LENGTH; n++) {
+    sen->buf[n] = 0;
+  }
+  sen->percentage = 0.0;
+  sen->bufIndex = 0;
+  sen->output = 0;
+}
+
 void setup() {
   // serial
   Serial.begin(115200);
@@ -38,8 +58,9 @@ void setup() {
   Serial.println("Serial online");
 
   // initialize sonsor pins
-  for (int i  = 0, i < noSensors; i++) {
+  for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
+    sensor_init(&SensorData[i]);
   }
 
 

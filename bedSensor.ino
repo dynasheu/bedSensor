@@ -1,4 +1,4 @@
-#include <FS.h>
+#include <FS.h> // needs to be first
 #include <WiFiManager.h>
 
 #ifdef ESP32
@@ -6,6 +6,9 @@
 #endif
 
 #include <ArduinoJson.h>
+
+// set this only once to correclty format SPIFFS
+#define FORMAT_SPIFFS_IF_FAILED true
 
 //define your default values here, if there are different values in config.json, they are overwritten.
 char mqtt_server[40];
@@ -40,10 +43,7 @@ void setup() {
   //read configuration from FS json
   Serial.println("mounting FS...");
 
-  //read configuration from FS json
-  Serial.println("mounting FS...");
-
-  if (SPIFFS.begin()) {
+  if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
     Serial.println("mounted file system");
     if (SPIFFS.exists("/config.json")) {
       //file exists, reading and loading
@@ -57,17 +57,10 @@ void setup() {
 
         configFile.readBytes(buf.get(), size);
 
- #if defined(ARDUINOJSON_VERSION_MAJOR) && ARDUINOJSON_VERSION_MAJOR >= 6
         DynamicJsonDocument json(1024);
         auto deserializeError = deserializeJson(json, buf.get());
         serializeJson(json, Serial);
         if ( ! deserializeError ) {
-#else
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject& json = jsonBuffer.parseObject(buf.get());
-        json.printTo(Serial);
-        if (json.success()) {
-#endif
           Serial.println("\nparsed json");
           strcpy(mqtt_server, json["mqtt_server"]);
           strcpy(mqtt_port, json["mqtt_port"]);
@@ -152,12 +145,7 @@ void setup() {
   //save the custom parameters to FS
   if (shouldSaveConfig) {
     Serial.println("saving config");
- #if defined(ARDUINOJSON_VERSION_MAJOR) && ARDUINOJSON_VERSION_MAJOR >= 6
     DynamicJsonDocument json(1024);
-#else
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& json = jsonBuffer.createObject();
-#endif
     json["mqtt_server"] = mqtt_server;
     json["mqtt_port"] = mqtt_port;
     json["mqtt_username"] = mqtt_username;
@@ -170,13 +158,8 @@ void setup() {
       Serial.println("failed to open config file for writing");
     }
 
-#if defined(ARDUINOJSON_VERSION_MAJOR) && ARDUINOJSON_VERSION_MAJOR >= 6
     serializeJson(json, Serial);
     serializeJson(json, configFile);
-#else
-    json.printTo(Serial);
-    json.printTo(configFile);
-#endif
     configFile.close();
     //end save
   }

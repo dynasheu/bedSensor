@@ -21,12 +21,7 @@ char sensor_delay[8] = "60000";
 //flag for saving data
 bool shouldSaveConfig = false;
 
-//callback notifying us of the need to save config
-void saveConfigCallback () {
-  Serial.println("Should save config");
-  shouldSaveConfig = true;
-}
-
+//sensor variables
 const int noSensors = 2;
 int pirPins[noSensors] = {5, 6}; // pin numbers
 int sensorOutput[noSensors] = {0, 0}; // default to no output
@@ -40,7 +35,13 @@ typedef struct {
   int output;
 } SensorObj;
 
-SensorObj SensorData;
+SensorObj SensorData[noSensors];
+
+//callback notifying us of the need to save config
+void saveConfigCallback () {
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
+}
 
 void setup() {
   // serial
@@ -52,13 +53,10 @@ void setup() {
   // initialize sonsor pins
   for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
-    // Sensor_init(&SensorData[i]);
+    // SensorData[i] = Sensor_Init();
+    Sensor_Init(&SensorData[i]);
   }
   
-  Sensor_Init(&SensorData);
-
-
-
   //clean FS, for testing
   //SPIFFS.format();
 
@@ -189,7 +187,7 @@ void loop() {
 
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
-    Sensor_Update(&SensorData, pirState[i]);
+    Sensor_Update(&SensorData[i], pirState);
   }
 }
 
@@ -199,8 +197,23 @@ void Sensor_Init(SensorObj *sensor) {
   }
   sensor->percentage = 0.0;
   sensor->bufIndex = 0;
+  sensor->output_timer = 0;
   sensor->output = 0;
 }
+
+// SensorObj Sensor_Init() {
+//   SensorObj sensor;
+//   for (int n = 0; n < FILTER_LENGTH; n++) {
+//     sensor.buf[n] = 0;
+//   }
+//   sensor.percentage = 0.0;
+//   sensor.bufIndex = 0;
+//   sensor.output_timer = 0;
+//   sensor.output = 0;
+
+//   return sensor;
+// }
+
 
 int Sensor_Update(SensorObj *sensor, int input) {
   int old_output = sensor->output;

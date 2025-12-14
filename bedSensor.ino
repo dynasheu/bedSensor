@@ -30,7 +30,6 @@ typedef struct {
   int buf[FILTER_LENGTH];
   float percentage;
   int bufIndex;
-  int pirOutput;
   unsigned long output_timer;
   int output;
 } SensorObj;
@@ -44,7 +43,6 @@ void Sensor_Init(SensorObj *sensor) {
   }
   sensor->percentage = 0.0;
   sensor->bufIndex = 0;
-  sensor->pirOutput = 0;
   sensor->output_timer = 0;
   sensor->output = 0;
 }
@@ -60,8 +58,7 @@ int Sensor_Update(SensorObj *sensor, int input) {
     sensor->bufIndex = 0;
   }
 
-  sensor->pirOutput = 0;
-
+  int pirOutput = 0;
   int trig_count = 0;
   for (int n = 0; n < FILTER_LENGTH; n++) {
     trig_count += sensor->buf[n];
@@ -70,10 +67,10 @@ int Sensor_Update(SensorObj *sensor, int input) {
   sensor->percentage = (float)trig_count/FILTER_LENGTH * 100;
 
   if (sensor->percentage > 75.0) {
-    sensor->pirOutput = 1;
+    pirOutput = 1;
   }
 
-  if (sensor->pirOutput == 1) {
+  if (pirOutput == 1) {
     sensor->output_timer = millis();
     sensor->output = 1;
   }
@@ -88,7 +85,6 @@ int Sensor_Update(SensorObj *sensor, int input) {
   }
   
   return sensor->output;
-
 }
 
 //callback notifying us of the need to save config
@@ -133,7 +129,6 @@ void publishMessage(const char* topic, String payload, boolean retained) {
 }
 
 void prepareMqttMessage() {
-
   StaticJsonDocument<265> doc;
   for (int i = 0; i < noSensors; i++) {
     doc["sensor" + String(i+1)] = SensorData[i].output ? "ON" : "OFF";
@@ -142,17 +137,16 @@ void prepareMqttMessage() {
   serializeJson(doc, mqtt_message);
 
   publishMessage(mqtt_topic, mqtt_message, true);
-
 }
 
 void setup() {
-  // serial
+  // initialize serial
   Serial.begin(115200);
   while (!Serial)
     delay(10);
   Serial.println("Serial online");
 
-  // initialize sonsor pins and senosr struct
+  // initialize sonsor pins and sensor struct
   for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
     Sensor_Init(&SensorData[i]);
@@ -284,27 +278,16 @@ void setup() {
   // mqtt
   int mqttPort = atoi(mqtt_port);
   client.setServer(mqtt_server, mqttPort);
-
 }
 
 void loop() {
-  //mqtt client
-  if (!client.connected()) reconnect();  // check if client is connected
+  //mqtt client check
+  if (!client.connected()) reconnect();
   client.loop();
 
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
     Sensor_Update(&SensorData[i], pirState);
-
-      // serial plotter debugger output just for one output
-      // if ( i == 0 ) {
-      //   Serial.print(pirState);
-      //   Serial.print(",");
-      //   Serial.print(SensorData[i].percentage);
-      //   Serial.print(",");
-      //   Serial.println(SensorData[i].output);
-      // }
-
   }
 
   delay(LOOP_DELAY);

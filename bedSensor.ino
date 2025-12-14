@@ -94,9 +94,6 @@ void saveConfigCallback () {
 //mqtt stuff
 WiFiClient espClient;
 PubSubClient client(espClient);
-unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE	(50)
-char msg[MSG_BUFFER_SIZE];
 
 // mqtt reconnect
 void reconnect() {
@@ -107,7 +104,7 @@ void reconnect() {
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (client.connect(clientId.c_str(), mqtt_server, mqtt_password)) {
+    if (client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       // client.publish("outTopic", "hello world");
@@ -225,7 +222,7 @@ void setup() {
   wifiManager.setDarkMode(true);
 
   //reset settings - for testing
-  wifiManager.resetSettings();
+  // wifiManager.resetSettings();
 
   //and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect("AutoConnectAP", "password")) {
@@ -293,7 +290,7 @@ void loop() {
     int pirState = digitalRead(pirPins[i]);
     Sensor_Update(&SensorData[i], pirState);
 
-      // serial plotter debugger output
+      // serial plotter debugger output just for one output
       if ( i == 0 ) {
         Serial.print(pirState);
         Serial.print(",");

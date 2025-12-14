@@ -30,6 +30,7 @@ typedef struct {
   int buf[FILTER_LENGTH];
   float percentage;
   int bufIndex;
+  int pirOutput;
   unsigned long output_timer;
   int output;
 } SensorObj;
@@ -43,6 +44,7 @@ void Sensor_Init(SensorObj *sensor) {
   }
   sensor->percentage = 0.0;
   sensor->bufIndex = 0;
+  sensor->pirOutput = 0;
   sensor->output_timer = 0;
   sensor->output = 0;
 }
@@ -58,7 +60,7 @@ int Sensor_Update(SensorObj *sensor, int input) {
     sensor->bufIndex = 0;
   }
 
-  sensor->output = 0;
+  sensor->pirOutput = 0;
 
   int trig_count = 0;
   for (int n = 0; n < FILTER_LENGTH; n++) {
@@ -68,6 +70,10 @@ int Sensor_Update(SensorObj *sensor, int input) {
   sensor->percentage = (float)trig_count/FILTER_LENGTH * 100;
 
   if (sensor->percentage > 75.0) {
+    sensor->pirOutput = 1;
+  }
+
+  if (sensor->pirOutput == 1) {
     sensor->output_timer = millis();
     sensor->output = 1;
   }
@@ -146,7 +152,7 @@ void setup() {
     delay(10);
   Serial.println("Serial online");
 
-  // initialize sonsor pins
+  // initialize sonsor pins and senosr struct
   for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
     Sensor_Init(&SensorData[i]);
@@ -291,13 +297,13 @@ void loop() {
     Sensor_Update(&SensorData[i], pirState);
 
       // serial plotter debugger output just for one output
-      if ( i == 0 ) {
-        Serial.print(pirState);
-        Serial.print(",");
-        Serial.print(SensorData[i].percentage);
-        Serial.print(",");
-        Serial.println(SensorData[i].output);
-      }
+      // if ( i == 0 ) {
+      //   Serial.print(pirState);
+      //   Serial.print(",");
+      //   Serial.print(SensorData[i].percentage);
+      //   Serial.print(",");
+      //   Serial.println(SensorData[i].output);
+      // }
 
   }
 

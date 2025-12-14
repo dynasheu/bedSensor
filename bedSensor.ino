@@ -77,6 +77,10 @@ int Sensor_Update(SensorObj *sensor, int input) {
     sensor->output = 0;
   }
 
+  if (old_output != sensor->output) {
+    prepareMqttMessage();
+  }
+  
   return sensor->output;
 
 }
@@ -94,6 +98,7 @@ unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
 
+// mqtt reconnect
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -116,6 +121,25 @@ void reconnect() {
       delay(5000);
     }
   }
+}
+
+// mqtt publish message
+void publishMessage(const char* topic, String payload, boolean retained) {
+  if (client.publish(topic, payload.c_str(), true))
+    Serial.println("Message publised [" + String(topic) + "]: " + payload);
+}
+
+void prepareMqttMessage() {
+
+  StaticJsonDocument<265> doc;
+  for (int i = 0; i < noSensors; i++) {
+    doc["sensor" + String(i+1)] = SensorData[i].output ? "ON" : "OFF";
+  }
+  char mqtt_message[265];
+  serializeJson(doc, mqtt_message);
+
+  publishMessage(mqtt_topic, mqtt_message, true);
+
 }
 
 void setup() {

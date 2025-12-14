@@ -1,10 +1,8 @@
 #include <FS.h> // needs to be first
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
-
-#ifdef ESP32
-  #include <SPIFFS.h>
-#endif
-
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <SPIFFS.h>
 #include <ArduinoJson.h> // v6+
 
 #define FORMAT_SPIFFS_IF_FAILED true
@@ -38,10 +36,86 @@ typedef struct {
 
 SensorObj SensorData[noSensors];
 
+// initilaize struct for sensors
+void Sensor_Init(SensorObj *sensor) {
+  for (int n = 0; n < FILTER_LENGTH; n++) {
+    sensor->buf[n] = 0;
+  }
+  sensor->percentage = 0.0;
+  sensor->bufIndex = 0;
+  sensor->output_timer = 0;
+  sensor->output = 0;
+}
+
+// update struct for sensors
+int Sensor_Update(SensorObj *sensor, int input) {
+  int old_output = sensor->output;
+  sensor->buf[sensor->bufIndex] = input;
+
+  sensor->bufIndex++;
+
+  if (sensor->bufIndex == FILTER_LENGTH) {
+    sensor->bufIndex = 0;
+  }
+
+  sensor->output = 0;
+
+  int trig_count = 0;
+  for (int n = 0; n < FILTER_LENGTH; n++) {
+    trig_count += sensor->buf[n];
+  }
+
+  sensor->percentage = (float)trig_count/FILTER_LENGTH * 100;
+
+  if (sensor->percentage > 75.0) {
+    sensor->output_timer = millis();
+    sensor->output = 1;
+  }
+
+  int outputDelay = atoi(sensor_delay);
+  if ((millis() - sensor->output_timer) > outputDelay) {
+    sensor->output = 0;
+  }
+
+  return sensor->output;
+
+}
+
 //callback notifying us of the need to save config
 void saveConfigCallback () {
   Serial.println("Should save config");
   shouldSaveConfig = true;
+}
+
+//mqtt stuff
+WiFiClient espClient;
+PubSubClient client(espClient);
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP32Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (client.connect(clientId.c_str(), mqtt_server, mqtt_password)) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      // client.publish("outTopic", "hello world");
+      // ... and resubscribe
+      // client.subscribe("inTopic");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
 
 void setup() {
@@ -54,7 +128,6 @@ void setup() {
   // initialize sonsor pins
   for (int i  = 0; i < noSensors; i++) {
     pinMode(pirPins[i], INPUT);
-    // SensorData[i] = Sensor_Init();
     Sensor_Init(&SensorData[i]);
   }
   
@@ -140,7 +213,9 @@ void setup() {
   }
 
   //if you get here you have connected to the WiFi
-  Serial.println("connected to WiFi :)");
+  Serial.println("connected to WiFi");
+  Serial.print("Local ip: ");
+  Serial.println(WiFi.localIP());
 
   //read updated parameters
   strcpy(mqtt_server, custom_mqtt_server.getValue());
@@ -179,18 +254,22 @@ void setup() {
     //end save
   }
 
-  Serial.println("local ip");
-  Serial.println(WiFi.localIP());
+  // mqtt
+  int mqttPort = atoi(mqtt_port);
+  client.setServer(mqtt_server, mqttPort);
 
 }
 
 void loop() {
+  //mqtt client
+  if (!client.connected()) reconnect();  // check if client is connected
+  client.loop();
 
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
     Sensor_Update(&SensorData[i], pirState);
 
-      // serial plotter output
+      // serial plotter debugger output
       if ( i == 0 ) {
         Serial.print(pirState);
         Serial.print(",");
@@ -202,61 +281,4 @@ void loop() {
   }
 
   delay(LOOP_DELAY);
-}
-
-void Sensor_Init(SensorObj *sensor) {
-  for (int n = 0; n < FILTER_LENGTH; n++) {
-    sensor->buf[n] = 0;
-  }
-  sensor->percentage = 0.0;
-  sensor->bufIndex = 0;
-  sensor->output_timer = 0;
-  sensor->output = 0;
-}
-
-// SensorObj Sensor_Init() {
-//   SensorObj sensor;
-//   for (int n = 0; n < FILTER_LENGTH; n++) {
-//     sensor.buf[n] = 0;
-//   }
-//   sensor.percentage = 0.0;
-//   sensor.bufIndex = 0;
-//   sensor.output_timer = 0;
-//   sensor.output = 0;
-
-//   return sensor;
-// }
-
-
-int Sensor_Update(SensorObj *sensor, int input) {
-  int old_output = sensor->output;
-  sensor->buf[sensor->bufIndex] = input;
-
-  sensor->bufIndex++;
-
-  if (sensor->bufIndex == FILTER_LENGTH) {
-    sensor->bufIndex = 0;
-  }
-
-  sensor->output = 0;
-
-  int trig_count = 0;
-  for (int n = 0; n < FILTER_LENGTH; n++) {
-    trig_count += sensor->buf[n];
-  }
-
-  sensor->percentage = (float)trig_count/FILTER_LENGTH * 100;
-
-  if (sensor->percentage > 75.0) {
-    sensor->output_timer = millis();
-    sensor->output = 1;
-  }
-
-  int outputDelay = atoi(sensor_delay);
-  if ((millis() - sensor->output_timer) > outputDelay) {
-    sensor->output = 0;
-  }
-
-  return sensor->output;
-
 }

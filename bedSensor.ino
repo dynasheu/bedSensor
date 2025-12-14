@@ -97,7 +97,7 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
-//mqtt stuff
+//mqtt client
 WiFiClient espClient;
 PubSubClient client(espClient);
 

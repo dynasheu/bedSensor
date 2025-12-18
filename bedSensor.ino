@@ -23,7 +23,7 @@ bool shouldSaveConfig = false;
 //sensor variables
 const int noSensors = 2;
 int pirPins[noSensors] = {5, 6}; // pin numbers
-int sensorOutput[noSensors] = {0, 0}; // default to no output
+int outputPins[noSensors] = {10, 11}; // pins for output, same state as mqtt message
 
 // struc to hold sensor data
 typedef struct {
@@ -48,7 +48,7 @@ void Sensor_Init(SensorObj *sensor) {
 }
 
 // update struct for sensors
-int Sensor_Update(SensorObj *sensor, int input) {
+int Sensor_Update(SensorObj *sensor, int id, int input) {
   int old_output = sensor->output;
   sensor->buf[sensor->bufIndex] = input;
 
@@ -81,6 +81,7 @@ int Sensor_Update(SensorObj *sensor, int input) {
   }
 
   if (old_output != sensor->output) {
+    digitalWrite(outputPins[id], sensor->output); // write to pin
     prepareMqttMessage();
   }
   
@@ -171,7 +172,8 @@ void setup() {
 
   // initialize sonsor pins and sensor struct
   for (int i  = 0; i < noSensors; i++) {
-    pinMode(pirPins[i], INPUT);
+    pinMode(pirPins[i], INPUT); // for Panasonic EKMC1601111 you need a separate pulldown resistor
+    pinMode(outputPins[i], OUTPUT);
     Sensor_Init(&SensorData[i]);
   }
   
@@ -311,7 +313,7 @@ void loop() {
 
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
-    Sensor_Update(&SensorData[i], pirState);
+    Sensor_Update(&SensorData[i], i, pirState);
   }
 
   delay(LOOP_DELAY);

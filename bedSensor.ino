@@ -139,17 +139,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // check for sensor_delay
   DynamicJsonDocument json(256);
   auto deserializeError = deserializeJson(json, incommingMessage);
-  // serializeJson(json, Serial);
   if ( ! deserializeError ) {
-    // const char* new_delay = json["sensor_delay"]; // works great if you send string but not int
     char new_delay[10];
-    sprintf(new_delay, "%d", json["sensor_delay"].as<int>()); // int to string conversion
+    sprintf(new_delay, "%d", json["sensor_delay"].as<unsigned int>()); // int to string conversion
+    Serial.println(new_delay);
     if ( strlen(new_delay) > 2 ) { // strlen handles if property even exists
       strcpy(sensor_delay, new_delay);
     }
-    // if (json.containsKey("sensor_delay")) {
-    //   strcpy(sensor_delay, json["sensor_delay"]);
-    // }
   } else {
     Serial.println("failed to load json config");
   }

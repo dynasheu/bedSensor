@@ -15,7 +15,7 @@ char mqtt_port[6] = "1883";
 char mqtt_username[15];
 char mqtt_password[15];
 char mqtt_topic[30] = "bedroom/bed_sensor";
-char sensor_delay[8] = "60000";
+char sensor_delay[10] = "60000";
 
 //flag for saving data
 bool shouldSaveConfig = false;
@@ -108,10 +108,11 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
-      // client.publish("outTopic", "hello world");
-      // ... and resubscribe
-      // client.subscribe("inTopic");
+      char mqtt_sub_topic[40];
+      const char* mqtt_config= "/config";
+      strcpy(mqtt_sub_topic, mqtt_topic ); 
+      strcat(mqtt_sub_topic, mqtt_config);
+      client.subscribe(mqtt_sub_topic);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -126,6 +127,32 @@ void reconnect() {
 void publishMessage(const char* topic, String payload, boolean retained) {
   if (client.publish(topic, payload.c_str(), true))
     Serial.println("Message publised [" + String(topic) + "]: " + payload);
+}
+
+// mqtt call back for received messages
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String incommingMessage = "";
+  for (int i = 0; i < length; i++) incommingMessage += (char)payload[i];
+
+  Serial.println("Message arrived [" + String(topic) + "]: " + incommingMessage);
+
+  // check for sensor_delay
+  DynamicJsonDocument json(256);
+  auto deserializeError = deserializeJson(json, incommingMessage);
+  // serializeJson(json, Serial);
+  if ( ! deserializeError ) {
+    // const char* new_delay = json["sensor_delay"]; // works great if you send string but not int
+    char new_delay[10];
+    sprintf(new_delay, "%d", json["sensor_delay"].as<int>()); // int to string conversion
+    if ( strlen(new_delay) > 2 ) { // strlen handles if property even exists
+      strcpy(sensor_delay, new_delay);
+    }
+    // if (json.containsKey("sensor_delay")) {
+    //   strcpy(sensor_delay, json["sensor_delay"]);
+    // }
+  } else {
+    Serial.println("failed to load json config");
+  }
 }
 
 void prepareMqttMessage() {
@@ -278,6 +305,7 @@ void setup() {
   // mqtt
   int mqttPort = atoi(mqtt_port);
   client.setServer(mqtt_server, mqttPort);
+  client.setCallback(mqttCallback);
 }
 
 void loop() {

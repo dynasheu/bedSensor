@@ -109,6 +109,15 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected");
+
+      // send hello message
+      StaticJsonDocument<128> json;
+      json["hello"] = 1;
+      char mqtt_message[128];
+      serializeJson(json, mqtt_message);
+      publishMessage(mqtt_topic, mqtt_message, true);
+
+      // subscribe to donfig
       char mqtt_sub_topic[40];
       const char* mqtt_config= "/config";
       strcpy(mqtt_sub_topic, mqtt_topic ); 

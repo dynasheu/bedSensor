@@ -146,6 +146,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println(new_delay);
     if ( strlen(new_delay) > 2 ) { // strlen handles if property even exists
       strcpy(sensor_delay, new_delay);
+      saveConfig();
     }
   } else {
     Serial.println("failed to load json config");
@@ -161,6 +162,26 @@ void prepareMqttMessage() {
   serializeJson(doc, mqtt_message);
 
   publishMessage(mqtt_topic, mqtt_message, true);
+}
+
+void saveConfig() {
+  Serial.println("saving config");
+  DynamicJsonDocument json(1024);
+  json["mqtt_server"] = mqtt_server;
+  json["mqtt_port"] = mqtt_port;
+  json["mqtt_username"] = mqtt_username;
+  json["mqtt_password"] = mqtt_password;
+  json["mqtt_topic"] = mqtt_topic;
+  json["sensor_delay"] = sensor_delay;
+
+  File configFile = SPIFFS.open("/config.json", "w");
+  if (configFile) {
+    // serializeJson(json, Serial);
+    serializeJson(json, configFile);
+    configFile.close();
+  } else {
+    Serial.println("failed to open config file for writing");
+  }
 }
 
 void setup() {
@@ -223,11 +244,11 @@ void setup() {
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
   WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
-  WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
+  WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6, "pattern='\\d{4,5}'");
   WiFiManagerParameter custom_mqtt_username("username", "mqtt username", mqtt_username, 15);
   WiFiManagerParameter custom_mqtt_password("password", "mqtt password", mqtt_password, 15,"type='password'");
   WiFiManagerParameter custom_mqtt_topic("topic", "mqtt topic", mqtt_topic, 30);
-  WiFiManagerParameter custom_sensor_delay("sensor_delay", "PIR sensor delay", sensor_delay, 8);
+  WiFiManagerParameter custom_sensor_delay("sensor_delay", "PIR sensor delay", sensor_delay, 10, "pattern='\\d{2,7}'");
 
   //WiFiManager
   WiFiManager wifiManager;
@@ -280,24 +301,7 @@ void setup() {
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-    Serial.println("saving config");
-    DynamicJsonDocument json(1024);
-    json["mqtt_server"] = mqtt_server;
-    json["mqtt_port"] = mqtt_port;
-    json["mqtt_username"] = mqtt_username;
-    json["mqtt_password"] = mqtt_password;
-    json["mqtt_topic"] = mqtt_topic;
-    json["sensor_delay"] = sensor_delay;
-
-    File configFile = SPIFFS.open("/config.json", "w");
-    if (!configFile) {
-      Serial.println("failed to open config file for writing");
-    }
-
-    // serializeJson(json, Serial);
-    serializeJson(json, configFile);
-    configFile.close();
-    //end save
+    saveConfig();
   }
 
   // mqtt

@@ -15,15 +15,15 @@ char mqtt_port[6] = "1883";
 char mqtt_username[15];
 char mqtt_password[15];
 char mqtt_topic[30] = "bedroom/bed_sensor";
-char sensor_delay[10] = "60000";
+char sensor_delay[10] = "60";
 
 //flag for saving data
 bool shouldSaveConfig = false;
 
 //sensor variables
 const int noSensors = 2;
-int pirPins[noSensors] = {5, 6}; // pin numbers
-int outputPins[noSensors] = {10, 11}; // pins for output, same state as mqtt message
+int pirPins[noSensors] = {4, 5}; // pin numbers
+int outputPins[noSensors] = {6, 7}; // pins for output, same state as mqtt message
 
 // struc to hold sensor data
 typedef struct {
@@ -75,7 +75,7 @@ int Sensor_Update(SensorObj *sensor, int id, int input) {
     sensor->output = 1;
   }
 
-  int outputDelay = atoi(sensor_delay);
+  int outputDelay = atoi(sensor_delay)*1000;
   if ((millis() - sensor->output_timer) > outputDelay) {
     sensor->output = 0;
   }
@@ -165,7 +165,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void prepareMqttMessage() {
   StaticJsonDocument<265> doc;
   for (int i = 0; i < noSensors; i++) {
-    doc["sensor" + String(i+1)] = SensorData[i].output ? "ON" : "OFF";
+    doc["sensor" + String(i+1)] = SensorData[i].output;// ? "ON" : "OFF";
   }
   char mqtt_message[265];
   serializeJson(doc, mqtt_message);
@@ -202,7 +202,7 @@ void setup() {
 
   // initialize sonsor pins and sensor struct
   for (int i  = 0; i < noSensors; i++) {
-    pinMode(pirPins[i], INPUT); // for Panasonic EKMC1601111 you need a separate pulldown resistor
+    pinMode(pirPins[i], INPUT_PULLDOWN); // testing with Panasonic EKMC1601111 which needs pulldown resistor
     pinMode(outputPins[i], OUTPUT);
     Sensor_Init(&SensorData[i]);
   }

@@ -24,6 +24,7 @@ bool shouldSaveConfig = false;
 const int noSensors = 2;
 int pirPins[noSensors] = {4, 5}; // pin numbers
 int outputPins[noSensors] = {6, 7}; // pins for output, same state as mqtt message
+int resetPin = 3;
 
 // struc to hold sensor data
 typedef struct {
@@ -206,6 +207,8 @@ void setup() {
     pinMode(outputPins[i], OUTPUT);
     Sensor_Init(&SensorData[i]);
   }
+
+  pinMode(resetPin, INPUT_PULLDOWN);
   
   //clean FS, for testing
   //SPIFFS.format();
@@ -276,8 +279,11 @@ void setup() {
   //set dark mode
   wifiManager.setDarkMode(true);
 
-  //reset settings - for testing
-  // wifiManager.resetSettings();
+  // hold button while esp32 is starting to reset reset wifi settings.
+  // Usefull to set different mqtt settings as well.
+  if ( digitalRead(resetPin) == 1 ) {
+    wifiManager.resetSettings();
+  }
 
   //and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect("AutoConnectAP", "password")) {

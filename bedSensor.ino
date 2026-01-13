@@ -197,8 +197,8 @@ void saveConfig() {
 void setup() {
   // initialize serial
   Serial.begin(115200);
-  while (!Serial)
-    delay(10);
+  // while (!Serial)  // this fails board from starting when it is not connected to PC, it could be conented toEnabled option CDC on Boot
+  delay(10);
   Serial.println("Serial online");
 
   // initialize sonsor pins and sensor struct

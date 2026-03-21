@@ -24,7 +24,7 @@ bool shouldSaveConfig = false;
 const int noSensors = 2;
 int pirPins[noSensors] = {4, 5}; // pin numbers
 int outputPins[noSensors] = {6, 7}; // pins for output, same state as mqtt message
-int resetPin = 3;
+int resetPin = 9;
 
 // struc to hold sensor data
 typedef struct {
@@ -82,6 +82,7 @@ int Sensor_Update(SensorObj *sensor, int id, int input) {
   }
 
   if (old_output != sensor->output) {
+    Serial.println("sending new mqtt");
     digitalWrite(outputPins[id], sensor->output); // write to pin
     prepareMqttMessage();
   }
@@ -154,7 +155,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     char new_delay[10];
     sprintf(new_delay, "%d", json["sensor_delay"].as<unsigned int>()); // int to string conversion
     Serial.println(new_delay);
-    if ( strlen(new_delay) > 2 ) { // strlen handles if property even exists
+    if ( strlen(new_delay) > 1 ) { // strlen handles if property even exists
       strcpy(sensor_delay, new_delay);
       saveConfig();
     }
@@ -281,7 +282,10 @@ void setup() {
 
   // hold button while esp32 is starting to reset reset wifi settings.
   // Usefull to set different mqtt settings as well.
-  if ( digitalRead(resetPin) == 1 ) {
+  int resetMe = digitalRead(resetPin);
+  Serial.print("Should reset WiFi settings: ");
+  Serial.println(resetMe);
+  if ( resetMe == 1 ) {
     wifiManager.resetSettings();
   }
 
@@ -330,10 +334,40 @@ void loop() {
   if (!client.connected()) reconnect();
   client.loop();
 
+  // float s1p = 0.0;
+  // float s2p = 0.0;
+  // int s1i = 0;
+  // int s2i = 0;
+  // int s1o = 0;
+  // int s2o = 0;
+
   for (int i = 0; i < noSensors; i++) {
     int pirState = digitalRead(pirPins[i]);
+    // if (i == 0) {
+    //   s1i = pirState;
+    // } else {
+    //   s2i = pirState+5;
+    // }
     Sensor_Update(&SensorData[i], i, pirState);
   }
+
+  // s1p = SensorData[0].percentage/100;
+  // s2p = SensorData[1].percentage/100+5;
+  // s1o = SensorData[0].output;
+  // s2o = SensorData[1].output+5;
+
+  // Serial.print(s1i);
+  // Serial.print(",");
+  // Serial.print(s1p);
+  // Serial.print(",");
+  // Serial.print(s1o);
+  // Serial.print(",");
+  // Serial.print(s2i);
+  // Serial.print(",");
+  // Serial.print(s2p);
+  // Serial.print(",");
+  // Serial.println(s2o);
+
 
   delay(LOOP_DELAY);
 }
